@@ -147,8 +147,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 binding.progressBar1.visibility = View.INVISIBLE
                 binding.textView1.visibility = View.INVISIBLE
                 binding.errorView1.visibility = View.INVISIBLE
-                tts!!.stop()
-                speech!!.destroy()
+                if(tts != null && speech != null){
+                    tts!!.stop()
+                    speech!!.destroy()
+                }
 
             }
         }

@@ -44,6 +44,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private val PERMISSIONS_REQUEST_RECORD_AUDIO = 1
 
+    private val x = 0
+
     private var speech: SpeechRecognizer? = null
     private var recognizerIntent: Intent? = null
 
@@ -386,7 +388,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     override fun onPause() {
         Log.i(LOG_TAG, "pause")
         super.onPause()
-        speech!!.stopListening()
+        //speech!!.stopListening()
     }
 
     override fun onStop() {
@@ -451,7 +453,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         binding.errorView1.text = errorMessage
 
         // rest voice recogniser
-        resetSpeechRecognizer()
+        //resetSpeechRecognizer()
         speech!!.startListening(recognizerIntent)
     }
 

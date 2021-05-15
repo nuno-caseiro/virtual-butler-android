@@ -20,6 +20,5 @@ class SpeechListener(var speech: SpeechRecognizer, var b: MutableLiveData<Boolea
         speech.stopListening()
         AudioManager.ADJUST_UNMUTE
         b.postValue(true)
-
     }
 }

@@ -4,14 +4,15 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioManager
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.drawable.Drawable
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import android.text.format.Formatter
 import android.util.Log
 import android.view.View
@@ -33,9 +34,11 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import pl.droidsonroids.gif.GifDrawable
 import pt.ipleiria.estg.meicm.butler.databinding.ActivityMainBinding
 import java.time.LocalDateTime
 import java.util.*
+
 
 class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnInitListener {
 
@@ -80,6 +83,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         deviceIp = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
         binding.progressBar1.visibility = View.INVISIBLE
 
+        setNotPresent()
+
+        (binding.gif.drawable as GifDrawable).stop()
 
         if (ContextCompat.checkSelfPermission(
                 this,
@@ -144,6 +150,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     binding.errorView1.visibility = View.VISIBLE
                     binding.progressBar1.isIndeterminate = true
 
+                    binding.gif.colorFilter = null
+                    binding.gif.alpha = 1.0F
+
                     //TODO é preciso isto tudo?
                     resetSpeechRecognizer()
                     setRecogniserIntent()
@@ -153,6 +162,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     //ativa escuta, fala, mostra tudo
                 } else {
                     //desativa escuta, fala, esconde tudo
+
+                    setNotPresent()
+
                     binding.progressBar1.visibility = View.INVISIBLE
                     binding.textView1.visibility = View.INVISIBLE
                     binding.errorView1.visibility = View.INVISIBLE
@@ -170,6 +182,14 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 sentenceToAnswer(it)
             }
         }
+    }
+
+    private fun setNotPresent() {
+        val matrix = ColorMatrix()
+        matrix.setSaturation(0f)
+        val filter = ColorMatrixColorFilter(matrix)
+        binding.gif.colorFilter = filter
+        binding.gif.alpha = 0.09F
     }
 
     private fun checkIfIsActive() {
@@ -413,6 +433,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             }
         } else
             if (matches[0].equals(keyword)) {
+                (binding.gif.drawable as GifDrawable).start()
                 binding.textView1.text = "detected"
                 detectedKeyword = true
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")

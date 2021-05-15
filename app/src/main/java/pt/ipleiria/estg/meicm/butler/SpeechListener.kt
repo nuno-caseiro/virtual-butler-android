@@ -1,15 +1,21 @@
 package pt.ipleiria.estg.meicm.butler
 
+import android.content.Intent
 import android.media.AudioManager
+import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.UtteranceProgressListener
 import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SpeechListener(var speech: SpeechRecognizer, var b: MutableLiveData<Boolean>) :
     UtteranceProgressListener() {
     override fun onDone(utteranceId: String?) {
-        AudioManager.ADJUST_MUTE
+
         b.postValue(false)
+
     }
 
     override fun onError(utteranceId: String?) {
@@ -17,8 +23,6 @@ class SpeechListener(var speech: SpeechRecognizer, var b: MutableLiveData<Boolea
     }
 
     override fun onStart(utteranceId: String?) {
-        speech.stopListening()
-        AudioManager.ADJUST_UNMUTE
-        b.postValue(true)
+
     }
 }

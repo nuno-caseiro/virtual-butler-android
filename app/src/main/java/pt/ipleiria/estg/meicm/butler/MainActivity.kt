@@ -6,13 +6,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
-import android.graphics.drawable.Drawable
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.text.format.Formatter
 import android.util.Log
 import android.view.View
@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-    private val serverIP = "192.168.0.77:7579"
+    private val serverIP = "192.168.1.78:7579"
     private val serverURI = "http://" + this.serverIP
 
     private lateinit var deviceIp: String
@@ -109,13 +109,11 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         embeddedServer(Jetty, 1400) {
             routing {
                 post("/location") {
-                    //call.receiveText()
                     val receiveText = call.receiveText()
                     Log.d("NOTIFICATION", receiveText)
                     receivedLocationNotification.postValue(receiveText)
                 }
                 post("/sentences") {
-                    //call.receiveText()
                     val receiveText = call.receiveText()
                     Log.d("NOTIFICATION", receiveText)
                     receivedSentenceNotification.postValue(receiveText)
@@ -134,7 +132,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             if (it != null) {
                 //desligar voice recognition -> como no exemplo que ja fiz "My application"
                 readNotification("location", it)
-
             }
         }
 
@@ -155,9 +152,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     binding.gif.colorFilter = null
                     binding.gif.alpha = 1.0F
 
-                    //TODO é preciso isto tudo?
                     resetSpeechRecognizer()
                     setRecogniserIntent()
+
                     tts = TextToSpeech(this, this)
                     tts!!.setOnUtteranceProgressListener(SpeechListener(speech!!, runningSpeech))
                     speech!!.startListening(recognizerIntent)
@@ -245,11 +242,14 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                                         "ty"
                                     ).toInt() == 4
                                 ) {
+                                    speech!!.stopListening()
+                                    println(speech.toString())
+
                                     tts!!.speak(
                                         jsonObject.getString("con"),
                                         TextToSpeech.QUEUE_FLUSH,
                                         null,
-                                        ""
+                                        "1"
                                     )
                                 }
                             }
@@ -258,7 +258,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 }
             }
         }
-
     }
 
     private fun checkRoomName() {
@@ -420,31 +419,38 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         Log.i(LOG_TAG, "onResults")
         val matches = results
             .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        var text = ""
+        val text = ""
         println(matches!![0])
         binding.textView1.text = text
 
+
+        //se a palavra chave foi detetada anteriormente e resultados maior que zero
         if (detectedKeyword && matches.size != 0) {
-            //do something
+
+            //se o resultado for outra vez a palavra chave
             if (matches[0].equals(keyword)) {
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             } else {
+
+                //se for um comando, tenta responder
                 binding.textView1.text = matches[0]
                 detectedKeyword = false
                 sentenceToAnswer(matches[0])
             }
-        } else
-            if (matches[0].equals(keyword)) {
+
+            //se a palavra chave for detetada
+        } else if (matches[0].equals(keyword)) {
                 (binding.gif.drawable as GifDrawable).start()
                 binding.textView1.text = "detected"
                 detectedKeyword = true
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
                 //speech!!.startListening(recognizerIntent)
             } else {
+                //se a palavra chave nao foi detetada agora nem anteriormente
+
+                //tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
                 speech!!.startListening(recognizerIntent)
             }
-
-
     }
 
     override fun onError(errorCode: Int) {
@@ -452,9 +458,13 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         Log.i(LOG_TAG, "FAILED $errorMessage")
         binding.errorView1.text = errorMessage
 
-        // rest voice recogniser
-        //resetSpeechRecognizer()
-        speech!!.startListening(recognizerIntent)
+        if (errorCode ==  SpeechRecognizer.ERROR_NO_MATCH  ){
+            speech!!.startListening(recognizerIntent)
+        }
+
+        if (errorCode == SpeechRecognizer.ERROR_RECOGNIZER_BUSY){
+            speech!!.stopListening()
+        }
     }
 
     override fun onEvent(arg0: Int, arg1: Bundle?) {

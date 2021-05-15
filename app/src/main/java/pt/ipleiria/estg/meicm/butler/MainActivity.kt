@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.media.AudioManager
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -84,6 +85,11 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         deviceIp = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
         binding.progressBar1.visibility = View.INVISIBLE
+
+        val audioManager: AudioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_MUTE, 0)
+
+
 
         setNotPresent()
 
@@ -366,7 +372,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
         recognizerIntent!!.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
-            "pt-PT"
+            Locale.getDefault()
         )
         recognizerIntent!!.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -382,12 +388,17 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         //   resetSpeechRecognizer()
         //   speech!!.startListening(recognizerIntent)
+        if (speech != null){
+            speech!!.startListening(recognizerIntent)
+        }
     }
 
     override fun onPause() {
         Log.i(LOG_TAG, "pause")
         super.onPause()
-        //speech!!.stopListening()
+        if(speech!=null){
+            speech!!.stopListening()
+        }
     }
 
     override fun onStop() {
@@ -464,6 +475,11 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         if (errorCode == SpeechRecognizer.ERROR_RECOGNIZER_BUSY){
             speech!!.stopListening()
+        }
+
+        if(errorCode== SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS){
+            resetSpeechRecognizer()
+            speech!!.startListening(recognizerIntent)
         }
     }
 

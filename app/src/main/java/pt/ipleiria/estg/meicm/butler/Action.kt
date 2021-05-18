@@ -1,11 +1,11 @@
 package pt.ipleiria.estg.meicm.butler
 
-enum class Animation {
+enum class Action {
     NOT_PRESENT,
-    PRESENT,
+    WAITING,
+    IMPATIENT,
     TURN_ON,
     TALK,
     SLEEP,
-    SHOCK,
-    WAITING
+    SHOCK
 }

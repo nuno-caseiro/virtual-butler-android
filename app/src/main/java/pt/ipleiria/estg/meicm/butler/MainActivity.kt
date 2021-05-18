@@ -6,7 +6,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -14,6 +16,8 @@ import android.speech.tts.TextToSpeech
 import android.text.format.Formatter
 import android.util.Log
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -32,6 +36,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import pl.droidsonroids.gif.GifDrawable
 import pt.ipleiria.estg.meicm.butler.databinding.ActivityMainBinding
 import java.time.LocalDateTime
 import java.util.*
@@ -71,6 +76,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private var recognitionText: MutableLiveData<String> = MutableLiveData<String>()
 
+    private lateinit var timer: CountDownTimer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,7 +129,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         runningSpeech.observeForever {
             if (it == false) {
-                animate(Animation.WAITING)
+                animate(Action.WAITING)
 
                 speech!!.startListening(recognizerIntent)
             }
@@ -147,11 +153,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 if (it) {
                     //ativa escuta, fala, mostra tudo
                     binding.progressBar1.visibility = View.VISIBLE
-                    binding.textView1.visibility = View.VISIBLE
-                    binding.errorView1.visibility = View.VISIBLE
                     binding.progressBar1.isIndeterminate = true
 
-                    animate(Animation.PRESENT)
+                    animate(Action.TURN_ON)
 
                     resetSpeechRecognizer()
                     setRecogniserIntent()
@@ -162,11 +166,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
                 } else { //desativa escuta, fala, esconde tudo
 
-                    animate(Animation.NOT_PRESENT)
+                    animate(Action.NOT_PRESENT)
 
                     binding.progressBar1.visibility = View.INVISIBLE
-                    binding.textView1.visibility = View.INVISIBLE
-                    binding.errorView1.visibility = View.INVISIBLE
                     if (tts != null && speech != null) {
                         tts!!.stop()
                         speech!!.destroy()
@@ -279,7 +281,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         if (answer.toLowerCase().contains("horas são") || answer.toLowerCase()
                 .contains("são que horas")
         ) {
-            animate(Animation.TALK)
+            animate(Action.TALK)
             val current = LocalDateTime.now()
             tts!!.speak(
                 "são ${current.hour} horas e ${current.minute} minutos",
@@ -288,22 +290,22 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 ""
             )
 
-        } else
-            if (answer.toLowerCase().contains("dia é hoje") || answer.toLowerCase()
-                    .contains("hoje é que dia")
-            ) {
-                animate(Animation.TALK)
-                val current = LocalDateTime.now()
-                tts!!.speak(
-                    mappingDays(current.dayOfWeek.toString()),
-                    TextToSpeech.QUEUE_FLUSH,
-                    null,
-                    ""
-                )
 
-            } else {
-                speech!!.startListening(recognizerIntent)
-            }
+        } else if (answer.toLowerCase().contains("dia é hoje") || answer.toLowerCase()
+                .contains("hoje é que dia")
+        ) {
+            animate(Action.TALK)
+            val current = LocalDateTime.now()
+            tts!!.speak(
+                mappingDays(current.dayOfWeek.toString()),
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                ""
+            )
+
+        } else {
+            speech!!.startListening(recognizerIntent)
+        }
     }
 
     private fun mappingDays(day: String): String {
@@ -418,9 +420,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         Log.i(LOG_TAG, "onResults")
         val matches = results
             .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        val text = ""
         println(matches!![0])
-        binding.textView1.text = text
 
 
         //se a palavra chave foi detetada anteriormente e resultados maior que zero
@@ -431,16 +431,18 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             } else {
                 //se for um comando, tenta responder
-                binding.textView1.text = matches[0]
                 detectedKeyword = false
                 sentenceToAnswer(matches[0])
+
+                startTimeCounter()
             }
 
             //se a palavra chave for detetada
         } else if (matches[0].equals(keyword)) {
-            animate(Animation.TALK)
+            if (this::timer.isInitialized) timer.cancel()
 
-            binding.textView1.text = "detected"
+            animate(Action.TALK)
+
             detectedKeyword = true
             tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             //speech!!.startListening(recognizerIntent)
@@ -455,7 +457,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     override fun onError(errorCode: Int) {
         val errorMessage = getErrorText(errorCode)
         Log.i(LOG_TAG, "FAILED $errorMessage")
-        binding.errorView1.text = errorMessage
+        // binding.errorView1.text = errorMessage
 
         if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
             speech!!.startListening(recognizerIntent)
@@ -518,44 +520,49 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
 
-    private fun animate(action: Animation) {
-        if (action == Animation.TALK) {
-            binding.gif.visibility = View.GONE
-            binding.talkedGif.visibility = View.VISIBLE
-        }
-        else {
-            binding.talkedGif.visibility = View.GONE
-            binding.gif.visibility = View.VISIBLE
+    private fun animate(action: Action) {
+        val resource: Int
 
-            val drawable = when (action) {
-                Animation.PRESENT -> ContextCompat.getDrawable(
-                    applicationContext,
-                    R.drawable.arci_present
-                )
-                Animation.TURN_ON -> ContextCompat.getDrawable(
-                    applicationContext,
-                    R.drawable.arci_anim_turn_on
-                )
-                Animation.SLEEP -> ContextCompat.getDrawable(
-                    applicationContext,
-                    R.drawable.arci_not_present
-                )
-                Animation.SHOCK -> ContextCompat.getDrawable(
-                    applicationContext,
-                    R.drawable.arci_not_present
-                )
-                Animation.WAITING -> ContextCompat.getDrawable(
-                    applicationContext,
-                    R.drawable.arci_waiting
-                )
-                else -> ContextCompat.getDrawable(
-                    applicationContext,
-                    R.drawable.arci_not_present
-                )
+        if (action == Action.WAITING || action == Action.IMPATIENT || action == Action.NOT_PRESENT) {
+            binding.gifAction.visibility = View.GONE
+
+            resource = resources.getIdentifier(
+                "arci_" + action.name.toLowerCase(Locale.ROOT),
+                "drawable", packageName
+            )
+            binding.imageAction.setImageResource(resource)
+
+            binding.imageAction.visibility = View.VISIBLE
+        } else {
+            binding.imageAction.visibility = View.GONE
+
+            resource = resources.getIdentifier(
+                "arci_anim_" + action.name.toLowerCase(Locale.ROOT),
+                "drawable", packageName
+            )
+            binding.gifAction.setImageResource(resource)
+
+            if (action == Action.SHOCK || action == Action.TURN_ON) (binding.gifAction.drawable as GifDrawable).loopCount =
+                1
+
+            binding.gifAction.visibility = View.VISIBLE
+        }
+    }
+
+    private fun startTimeCounter() {
+        timer = object : CountDownTimer(15000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                println(millisUntilFinished)
+                if (millisUntilFinished in 6001..7000) {
+                    animate(Action.IMPATIENT)
+                    detectedKeyword = false
+                }
             }
 
-            binding.gif.setImageDrawable(drawable)
-        }
+            override fun onFinish() {
+                animate(Action.SLEEP)
+            }
+        }.start()
     }
 
 }

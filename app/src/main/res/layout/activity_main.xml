@@ -58,8 +58,19 @@
             android:id="@+id/gif"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/animation_turn_on"
+            android:src="@drawable/arci_not_present"
             app:loopCount="1"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/errorView1" />
+
+        <pl.droidsonroids.gif.GifImageView
+            android:id="@+id/talkedGif"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/arci_anim_talk"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

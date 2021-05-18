@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.media.AudioManager
 import android.net.wifi.WifiManager
 import android.os.Bundle
@@ -13,7 +11,6 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import android.text.format.Formatter
 import android.util.Log
 import android.view.View
@@ -35,7 +32,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
-import pl.droidsonroids.gif.GifDrawable
 import pt.ipleiria.estg.meicm.butler.databinding.ActivityMainBinding
 import java.time.LocalDateTime
 import java.util.*
@@ -44,8 +40,6 @@ import java.util.*
 class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnInitListener {
 
     private val PERMISSIONS_REQUEST_RECORD_AUDIO = 1
-
-    private val x = 0
 
     private var speech: SpeechRecognizer? = null
     private var recognizerIntent: Intent? = null
@@ -57,7 +51,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-    private val serverIP = "192.168.1.78:7579"
+    // private val serverIP = "192.168.1.78:7579"
+    private val serverIP = "192.168.0.77:7579"
     private val serverURI = "http://" + this.serverIP
 
     private lateinit var deviceIp: String
@@ -87,13 +82,11 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         binding.progressBar1.visibility = View.INVISIBLE
 
         val audioManager: AudioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        audioManager.adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_MUTE, 0)
-
-
-
-        setNotPresent()
-
-        (binding.gif.drawable as GifDrawable).stop()
+        audioManager.adjustStreamVolume(
+            AudioManager.STREAM_NOTIFICATION,
+            AudioManager.ADJUST_MUTE,
+            0
+        )
 
         if (ContextCompat.checkSelfPermission(
                 this,
@@ -130,6 +123,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         runningSpeech.observeForever {
             if (it == false) {
+                animate(Animation.WAITING)
+
                 speech!!.startListening(recognizerIntent)
             }
         }
@@ -150,13 +145,13 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         active.observeForever {
             if (it != null) {
                 if (it) {
+                    //ativa escuta, fala, mostra tudo
                     binding.progressBar1.visibility = View.VISIBLE
                     binding.textView1.visibility = View.VISIBLE
                     binding.errorView1.visibility = View.VISIBLE
                     binding.progressBar1.isIndeterminate = true
 
-                    binding.gif.colorFilter = null
-                    binding.gif.alpha = 1.0F
+                    animate(Animation.PRESENT)
 
                     resetSpeechRecognizer()
                     setRecogniserIntent()
@@ -164,11 +159,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     tts = TextToSpeech(this, this)
                     tts!!.setOnUtteranceProgressListener(SpeechListener(speech!!, runningSpeech))
                     speech!!.startListening(recognizerIntent)
-                    //ativa escuta, fala, mostra tudo
-                } else {
-                    //desativa escuta, fala, esconde tudo
 
-                    setNotPresent()
+                } else { //desativa escuta, fala, esconde tudo
+
+                    animate(Animation.NOT_PRESENT)
 
                     binding.progressBar1.visibility = View.INVISIBLE
                     binding.textView1.visibility = View.INVISIBLE
@@ -187,14 +181,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 sentenceToAnswer(it)
             }
         }
-    }
-
-    private fun setNotPresent() {
-        val matrix = ColorMatrix()
-        matrix.setSaturation(0f)
-        val filter = ColorMatrixColorFilter(matrix)
-        binding.gif.colorFilter = filter
-        binding.gif.alpha = 0.09F
     }
 
     private fun checkIfIsActive() {
@@ -293,6 +279,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         if (answer.toLowerCase().contains("horas são") || answer.toLowerCase()
                 .contains("são que horas")
         ) {
+            animate(Animation.TALK)
             val current = LocalDateTime.now()
             tts!!.speak(
                 "são ${current.hour} horas e ${current.minute} minutos",
@@ -305,6 +292,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             if (answer.toLowerCase().contains("dia é hoje") || answer.toLowerCase()
                     .contains("hoje é que dia")
             ) {
+                animate(Animation.TALK)
                 val current = LocalDateTime.now()
                 tts!!.speak(
                     mappingDays(current.dayOfWeek.toString()),
@@ -388,7 +376,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         //   resetSpeechRecognizer()
         //   speech!!.startListening(recognizerIntent)
-        if (speech != null){
+        if (speech != null) {
             speech!!.startListening(recognizerIntent)
         }
     }
@@ -396,7 +384,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     override fun onPause() {
         Log.i(LOG_TAG, "pause")
         super.onPause()
-        if(speech!=null){
+        if (speech != null) {
             speech!!.stopListening()
         }
     }
@@ -442,7 +430,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             if (matches[0].equals(keyword)) {
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             } else {
-
                 //se for um comando, tenta responder
                 binding.textView1.text = matches[0]
                 detectedKeyword = false
@@ -451,17 +438,18 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
             //se a palavra chave for detetada
         } else if (matches[0].equals(keyword)) {
-                (binding.gif.drawable as GifDrawable).start()
-                binding.textView1.text = "detected"
-                detectedKeyword = true
-                tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
-                //speech!!.startListening(recognizerIntent)
-            } else {
-                //se a palavra chave nao foi detetada agora nem anteriormente
+            animate(Animation.TALK)
 
-                //tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
-                speech!!.startListening(recognizerIntent)
-            }
+            binding.textView1.text = "detected"
+            detectedKeyword = true
+            tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
+            //speech!!.startListening(recognizerIntent)
+        } else {
+            //se a palavra chave nao foi detetada agora nem anteriormente
+
+            //tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
+            speech!!.startListening(recognizerIntent)
+        }
     }
 
     override fun onError(errorCode: Int) {
@@ -469,15 +457,15 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         Log.i(LOG_TAG, "FAILED $errorMessage")
         binding.errorView1.text = errorMessage
 
-        if (errorCode ==  SpeechRecognizer.ERROR_NO_MATCH  ){
+        if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
             speech!!.startListening(recognizerIntent)
         }
 
-        if (errorCode == SpeechRecognizer.ERROR_RECOGNIZER_BUSY){
+        if (errorCode == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
             speech!!.stopListening()
         }
 
-        if(errorCode== SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS){
+        if (errorCode == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
             resetSpeechRecognizer()
             speech!!.startListening(recognizerIntent)
         }
@@ -526,6 +514,47 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         } else {
             Log.e("TTS", "Initilization Failed!")
+        }
+    }
+
+
+    private fun animate(action: Animation) {
+        if (action == Animation.TALK) {
+            binding.gif.visibility = View.GONE
+            binding.talkedGif.visibility = View.VISIBLE
+        }
+        else {
+            binding.talkedGif.visibility = View.GONE
+            binding.gif.visibility = View.VISIBLE
+
+            val drawable = when (action) {
+                Animation.PRESENT -> ContextCompat.getDrawable(
+                    applicationContext,
+                    R.drawable.arci_present
+                )
+                Animation.TURN_ON -> ContextCompat.getDrawable(
+                    applicationContext,
+                    R.drawable.arci_anim_turn_on
+                )
+                Animation.SLEEP -> ContextCompat.getDrawable(
+                    applicationContext,
+                    R.drawable.arci_not_present
+                )
+                Animation.SHOCK -> ContextCompat.getDrawable(
+                    applicationContext,
+                    R.drawable.arci_not_present
+                )
+                Animation.WAITING -> ContextCompat.getDrawable(
+                    applicationContext,
+                    R.drawable.arci_waiting
+                )
+                else -> ContextCompat.getDrawable(
+                    applicationContext,
+                    R.drawable.arci_not_present
+                )
+            }
+
+            binding.gif.setImageDrawable(drawable)
         }
     }
 

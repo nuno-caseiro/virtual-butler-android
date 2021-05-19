@@ -56,8 +56,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-    // private val serverIP = "192.168.1.78:7579"
-    private val serverIP = "192.168.0.77:7579"
+    private val serverIP = "192.168.1.78:7579"
+    //private val serverIP = "192.168.0.77:7579"
     private val serverURI = "http://" + this.serverIP
 
     private lateinit var deviceIp: String
@@ -208,50 +208,55 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private fun readNotification(notfSource: String, notf: String) {
 
-        var jsonObject = JSONObject(notf)
-        var sur = ""
-        if (jsonObject.has("m2m:sgn")) {
-            jsonObject = jsonObject.getJSONObject("m2m:sgn")
-            if (jsonObject.has("sur")) {
-                sur = jsonObject.getString("sur")
-                if (jsonObject.has("nev")) {
-                    jsonObject = jsonObject.getJSONObject("nev")
-                    if (jsonObject.has("rep")) {
-                        jsonObject = jsonObject.getJSONObject("rep")
-                        if (jsonObject.has("m2m:cin")) {
-                            jsonObject = jsonObject.getJSONObject("m2m:cin")
-                            if (notfSource == "location") {
-                                if (sur == "$currentRoomContainerURI/$deviceIp" && jsonObject.getString(
-                                        "ty"
-                                    ).toInt() == 4
-                                ) {
-                                    active.postValue(
-                                        jsonObject.getString("con")
-                                            .equals(roomName, ignoreCase = true)
-                                    )
+        try {
+            var jsonObject = JSONObject(notf)
+            var sur = ""
+            if (jsonObject.has("m2m:sgn")) {
+                jsonObject = jsonObject.getJSONObject("m2m:sgn")
+                if (jsonObject.has("sur")) {
+                    sur = jsonObject.getString("sur")
+                    if (jsonObject.has("nev")) {
+                        jsonObject = jsonObject.getJSONObject("nev")
+                        if (jsonObject.has("rep")) {
+                            jsonObject = jsonObject.getJSONObject("rep")
+                            if (jsonObject.has("m2m:cin")) {
+                                jsonObject = jsonObject.getJSONObject("m2m:cin")
+                                if (notfSource == "location") {
+                                    if (sur == "$currentRoomContainerURI/$deviceIp" && jsonObject.getString(
+                                            "ty"
+                                        ).toInt() == 4
+                                    ) {
+                                        active.postValue(
+                                            jsonObject.getString("con")
+                                                .equals(roomName, ignoreCase = true)
+                                        )
+                                    }
                                 }
-                            }
-                            if (notfSource == "sentence") {
-                                if (sur == "$sentencesToReadContainerURI/$deviceIp" && jsonObject.getString(
-                                        "ty"
-                                    ).toInt() == 4
-                                ) {
-                                    speech!!.stopListening()
-                                    println(speech.toString())
+                                if (notfSource == "sentence") {
+                                    if (sur == "$sentencesToReadContainerURI/$deviceIp" && jsonObject.getString(
+                                            "ty"
+                                        ).toInt() == 4
+                                    ) {
+                                        speech!!.stopListening()
+                                        println(speech.toString())
 
-                                    tts!!.speak(
-                                        jsonObject.getString("con"),
-                                        TextToSpeech.QUEUE_FLUSH,
-                                        null,
-                                        "1"
-                                    )
+                                        tts!!.speak(
+                                            jsonObject.getString("con"),
+                                            TextToSpeech.QUEUE_FLUSH,
+                                            null,
+                                            "1"
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+        }catch (e: Exception){
+            Log.e("ERROR", "XML")
         }
+
     }
 
     private fun checkRoomName() {

@@ -73,10 +73,12 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private var tts: TextToSpeech? = null
     private var runningSpeech: MutableLiveData<Boolean> = MutableLiveData()
-
     private var recognitionText: MutableLiveData<String> = MutableLiveData<String>()
 
-    private lateinit var timer: CountDownTimer
+    private var timer: CountDownTimer? = null
+    private var lastAnimation: Action? = null
+
+    private var isRuning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,8 +132,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         runningSpeech.observeForever {
             if (it == false) {
                 animate(Action.WAITING)
-
                 speech!!.startListening(recognizerIntent)
+            }else{
+                animate(Action.TALK)
             }
         }
 
@@ -167,6 +170,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 } else { //desativa escuta, fala, esconde tudo
 
                     animate(Action.NOT_PRESENT)
+                    timer?.cancel()
+                    timer = null
 
                     binding.progressBar1.visibility = View.INVISIBLE
                     if (tts != null && speech != null) {
@@ -183,6 +188,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 sentenceToAnswer(it)
             }
         }
+
+
     }
 
     private fun checkIfIsActive() {
@@ -309,7 +316,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             )
 
         } else {
-            speech!!.startListening(recognizerIntent)
+            //speech!!.startListening(recognizerIntent)
+            tts!!.speak("Não conheço esse comando", TextToSpeech.QUEUE_FLUSH, null, "")
         }
     }
 
@@ -380,9 +388,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     override fun onResume() {
         Log.i(LOG_TAG, "resume")
         super.onResume()
-
-        //   resetSpeechRecognizer()
-        //   speech!!.startListening(recognizerIntent)
         if (speech != null) {
             speech!!.startListening(recognizerIntent)
         }
@@ -427,7 +432,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         println(matches!![0])
 
-
+        timer?.cancel()
+        timer = null
+        isRuning=false
+        Log.e("RESULTS", "RESULTS")
         //se a palavra chave foi detetada anteriormente e resultados maior que zero
         if (detectedKeyword && matches.size != 0) {
 
@@ -439,23 +447,18 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 detectedKeyword = false
                 sentenceToAnswer(matches[0])
 
-                startTimeCounter()
             }
 
             //se a palavra chave for detetada
         } else if (matches[0].equals(keyword)) {
-            if (this::timer.isInitialized) timer.cancel()
-
-            animate(Action.TALK)
-
             detectedKeyword = true
             tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             //speech!!.startListening(recognizerIntent)
         } else {
             //se a palavra chave nao foi detetada agora nem anteriormente
 
-            //tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
-            speech!!.startListening(recognizerIntent)
+            tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
+            //speech!!.startListening(recognizerIntent)
         }
     }
 
@@ -465,6 +468,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         // binding.errorView1.text = errorMessage
 
         if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
+            if(!isRuning && lastAnimation!=Action.SLEEP){
+                Log.e("ERROR RECOGGGG", "ERROR")
+                startTimeCounterSleep()
+            }
             speech!!.startListening(recognizerIntent)
         }
 
@@ -491,7 +498,15 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     override fun onRmsChanged(rmsdB: Float) {
-        //Log.i(LOG_TAG, "onRmsChanged: " + rmsdB);
+        if (rmsdB > 5 && rmsdB < 10.0 && (lastAnimation == null || lastAnimation == Action.SLEEP)){
+            animate(Action.IMPATIENT)
+        }
+
+        if(rmsdB > 5 && rmsdB < 10.0){
+            Log.e("RMSDB", rmsdB.toString())
+        }
+
+
         binding.progressBar1.progress = rmsdB.toInt()
     }
 
@@ -527,6 +542,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private fun animate(action: Action) {
         val resource: Int
+        lastAnimation = action
 
         if (action == Action.WAITING || action == Action.IMPATIENT || action == Action.NOT_PRESENT) {
             binding.gifAction.visibility = View.GONE
@@ -568,6 +584,22 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 animate(Action.SLEEP)
             }
         }.start()
+    }
+
+    private fun startTimeCounterSleep() {
+        isRuning = true
+        timer = object : CountDownTimer(15000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                println(millisUntilFinished)
+            }
+
+            override fun onFinish() {
+                if (!tts?.isSpeaking!! && lastAnimation != Action.SLEEP)
+                    animate(Action.SLEEP)
+                isRuning = false
+            }
+        }.start()
+
     }
 
 }

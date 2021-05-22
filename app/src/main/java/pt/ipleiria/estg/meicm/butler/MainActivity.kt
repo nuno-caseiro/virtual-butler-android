@@ -188,33 +188,34 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 sentenceToAnswer(it)
             }
         }
-
-
     }
 
     private fun checkIfIsActive() {
-        var responseContainer = query("$currentRoomContainerURI?fu=1&ty=4")
-        if (responseContainer != "Not found " && responseContainer.isNotEmpty()) {
+        try{
+            var responseContainer = query("$currentRoomContainerURI?fu=1&ty=4")
+            if (responseContainer != "Not found " && responseContainer.isNotEmpty()) {
 
-            var resp = JSONObject(responseContainer)
-            val respArray = resp["m2m:uril"] as JSONArray
-            if (respArray.length() > 0) {
-                responseContainer = query(respArray[0] as String)
-                resp = JSONObject(responseContainer)
-                if (resp.has("m2m:cin")) {
-                    resp = resp.getJSONObject("m2m:cin")
-                    if (resp.has("con")) {
-                        if (resp.getString("con") == roomName) {
-                            active.postValue(true)
+                var resp = JSONObject(responseContainer)
+                val respArray = resp["m2m:uril"] as JSONArray
+                if (respArray.length() > 0) {
+                    responseContainer = query(respArray[0] as String)
+                    resp = JSONObject(responseContainer)
+                    if (resp.has("m2m:cin")) {
+                        resp = resp.getJSONObject("m2m:cin")
+                        if (resp.has("con")) {
+                            if (resp.getString("con") == roomName) {
+                                active.postValue(true)
+                            }
                         }
                     }
                 }
             }
+        }catch (e: Exception){
+            Log.e("Exception", e.toString())
         }
     }
 
     private fun readNotification(notfSource: String, notf: String) {
-
         try {
             var jsonObject = JSONObject(notf)
             var sur = ""
@@ -267,7 +268,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     private fun checkRoomName() {
-
+    try{
         val responseContainer = query("$managerContainerURI/$deviceIp")
         if (responseContainer != "Not found" && responseContainer.isNotEmpty()) {
             var resp = JSONObject(responseContainer)
@@ -287,6 +288,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 }
             }
         }
+    }catch (e: Exception){
+        Log.e("Exception", e.toString())
+    }
+
     }
 
     private fun sentenceToAnswer(answer: String) {

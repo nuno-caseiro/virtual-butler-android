@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.wifi.WifiManager
-import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.speech.RecognitionListener
@@ -16,8 +15,6 @@ import android.speech.tts.TextToSpeech
 import android.text.format.Formatter
 import android.util.Log
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -93,6 +90,12 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         audioManager.adjustStreamVolume(
             AudioManager.STREAM_NOTIFICATION,
             AudioManager.ADJUST_MUTE,
+            0
+        )
+        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
+        audioManager.setStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
             0
         )
 
@@ -393,25 +396,18 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     override fun onResume() {
         Log.i(LOG_TAG, "resume")
         super.onResume()
-        if (speech != null) {
-            speech!!.startListening(recognizerIntent)
-        }
+
     }
 
     override fun onPause() {
         Log.i(LOG_TAG, "pause")
         super.onPause()
-        if (speech != null) {
-            speech!!.stopListening()
-        }
+
     }
 
     override fun onStop() {
         Log.i(LOG_TAG, "stop")
         super.onStop()
-        if (speech != null) {
-            speech!!.destroy()
-        }
     }
 
 
@@ -462,8 +458,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         } else {
             //se a palavra chave nao foi detetada agora nem anteriormente
 
-            tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
-            //speech!!.startListening(recognizerIntent)
+            //tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
+            speech!!.startListening(recognizerIntent)
         }
     }
 

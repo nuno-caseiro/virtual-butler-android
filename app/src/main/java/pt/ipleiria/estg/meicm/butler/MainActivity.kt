@@ -70,6 +70,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private var tts: TextToSpeech? = null
     private var runningSpeech: MutableLiveData<Boolean> = MutableLiveData()
+    private var noAnswerSpeech: MutableLiveData<Boolean> = MutableLiveData()
     private var recognitionText: MutableLiveData<String> = MutableLiveData<String>()
 
     private var timer: CountDownTimer? = null
@@ -167,7 +168,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     setRecogniserIntent()
 
                     tts = TextToSpeech(this, this)
-                    tts!!.setOnUtteranceProgressListener(SpeechListener(speech!!, runningSpeech))
+                    tts!!.setOnUtteranceProgressListener(SpeechListener(speech!!, runningSpeech, noAnswerSpeech))
                     speech!!.startListening(recognizerIntent)
 
                 } else { //desativa escuta, fala, esconde tudo
@@ -189,6 +190,13 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         recognitionText.observeForever {
             if (it != null) {
                 sentenceToAnswer(it)
+            }
+        }
+
+        noAnswerSpeech.observeForever{
+            if (it){
+                animate(Action.SAD)
+                startTimeCounterNoAnswer()
             }
         }
     }
@@ -325,7 +333,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         } else {
             //speech!!.startListening(recognizerIntent)
-            tts!!.speak("Não conheço esse comando", TextToSpeech.QUEUE_FLUSH, null, "")
+            tts!!.speak("Não reconheço esse comando", TextToSpeech.QUEUE_FLUSH, null, "99")
         }
     }
 
@@ -441,7 +449,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         if (detectedKeyword && matches.size != 0) {
 
             //se o resultado for outra vez a palavra chave
-            if (matches[0].equals(keyword)) {
+            if (matches[0].contains(keyword)) {
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             } else {
                 //se for um comando, tenta responder
@@ -451,7 +459,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             }
 
             //se a palavra chave for detetada
-        } else if (matches[0].equals(keyword)) {
+        } else if (matches[0].contains(keyword)) {
             detectedKeyword = true
             tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             //speech!!.startListening(recognizerIntent)
@@ -602,5 +610,21 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         }.start()
 
     }
+
+    private fun startTimeCounterNoAnswer() {
+
+        timer = object : CountDownTimer(3000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                println(millisUntilFinished)
+            }
+
+            override fun onFinish() {
+                animate(Action.WAITING)
+                speech?.startListening(recognizerIntent)
+            }
+        }.start()
+
+    }
+
 
 }

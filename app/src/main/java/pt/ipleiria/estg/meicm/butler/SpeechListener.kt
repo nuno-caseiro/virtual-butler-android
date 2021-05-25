@@ -5,12 +5,16 @@ import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 
-class SpeechListener(var speech: SpeechRecognizer, var b: MutableLiveData<Boolean>) :
+class SpeechListener(var speech: SpeechRecognizer, var b: MutableLiveData<Boolean>, var noAnswer:MutableLiveData<Boolean>) :
     UtteranceProgressListener() {
 
 
     override fun onDone(utteranceId: String?) {
-        b.postValue(false)
+        if(utteranceId=="99"){
+            noAnswer.postValue(true)
+        }else{
+            b.postValue(false)
+        }
 
     }
 

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.wifi.WifiManager
-import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.speech.RecognitionListener
@@ -16,8 +15,6 @@ import android.speech.tts.TextToSpeech
 import android.text.format.Formatter
 import android.util.Log
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -56,8 +53,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-    // private val serverIP = "192.168.1.78:7579"
-    private val serverIP = "192.168.0.77:7579"
+    private val serverIP = "192.168.1.78:7579"
+    //private val serverIP = "192.168.0.77:7579"
     private val serverURI = "http://" + this.serverIP
 
     private lateinit var deviceIp: String
@@ -73,10 +70,12 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private var tts: TextToSpeech? = null
     private var runningSpeech: MutableLiveData<Boolean> = MutableLiveData()
-
     private var recognitionText: MutableLiveData<String> = MutableLiveData<String>()
 
-    private lateinit var timer: CountDownTimer
+    private var timer: CountDownTimer? = null
+    private var lastAnimation: Action? = null
+
+    private var isRuning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,6 +90,12 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         audioManager.adjustStreamVolume(
             AudioManager.STREAM_NOTIFICATION,
             AudioManager.ADJUST_MUTE,
+            0
+        )
+        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
+        audioManager.setStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
             0
         )
 
@@ -130,8 +135,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         runningSpeech.observeForever {
             if (it == false) {
                 animate(Action.WAITING)
-
                 speech!!.startListening(recognizerIntent)
+            }else{
+                animate(Action.TALK)
             }
         }
 
@@ -167,6 +173,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 } else { //desativa escuta, fala, esconde tudo
 
                     animate(Action.NOT_PRESENT)
+                    timer?.cancel()
+                    timer = null
 
                     binding.progressBar1.visibility = View.INVISIBLE
                     if (tts != null && speech != null) {
@@ -186,76 +194,84 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     private fun checkIfIsActive() {
-        var responseContainer = query("$currentRoomContainerURI?fu=1&ty=4")
-        if (responseContainer != "Not found " && responseContainer.isNotEmpty()) {
+        try{
+            var responseContainer = query("$currentRoomContainerURI?fu=1&ty=4")
+            if (responseContainer != "Not found " && responseContainer.isNotEmpty()) {
 
-            var resp = JSONObject(responseContainer)
-            val respArray = resp["m2m:uril"] as JSONArray
-            if (respArray.length() > 0) {
-                responseContainer = query(respArray[0] as String)
-                resp = JSONObject(responseContainer)
-                if (resp.has("m2m:cin")) {
-                    resp = resp.getJSONObject("m2m:cin")
-                    if (resp.has("con")) {
-                        if (resp.getString("con") == roomName) {
-                            active.postValue(true)
+                var resp = JSONObject(responseContainer)
+                val respArray = resp["m2m:uril"] as JSONArray
+                if (respArray.length() > 0) {
+                    responseContainer = query(respArray[0] as String)
+                    resp = JSONObject(responseContainer)
+                    if (resp.has("m2m:cin")) {
+                        resp = resp.getJSONObject("m2m:cin")
+                        if (resp.has("con")) {
+                            if (resp.getString("con") == roomName) {
+                                active.postValue(true)
+                            }
                         }
                     }
                 }
             }
+        }catch (e: Exception){
+            Log.e("Exception", e.toString())
         }
     }
 
     private fun readNotification(notfSource: String, notf: String) {
-
-        var jsonObject = JSONObject(notf)
-        var sur = ""
-        if (jsonObject.has("m2m:sgn")) {
-            jsonObject = jsonObject.getJSONObject("m2m:sgn")
-            if (jsonObject.has("sur")) {
-                sur = jsonObject.getString("sur")
-                if (jsonObject.has("nev")) {
-                    jsonObject = jsonObject.getJSONObject("nev")
-                    if (jsonObject.has("rep")) {
-                        jsonObject = jsonObject.getJSONObject("rep")
-                        if (jsonObject.has("m2m:cin")) {
-                            jsonObject = jsonObject.getJSONObject("m2m:cin")
-                            if (notfSource == "location") {
-                                if (sur == "$currentRoomContainerURI/$deviceIp" && jsonObject.getString(
-                                        "ty"
-                                    ).toInt() == 4
-                                ) {
-                                    active.postValue(
-                                        jsonObject.getString("con")
-                                            .equals(roomName, ignoreCase = true)
-                                    )
+        try {
+            var jsonObject = JSONObject(notf)
+            var sur = ""
+            if (jsonObject.has("m2m:sgn")) {
+                jsonObject = jsonObject.getJSONObject("m2m:sgn")
+                if (jsonObject.has("sur")) {
+                    sur = jsonObject.getString("sur")
+                    if (jsonObject.has("nev")) {
+                        jsonObject = jsonObject.getJSONObject("nev")
+                        if (jsonObject.has("rep")) {
+                            jsonObject = jsonObject.getJSONObject("rep")
+                            if (jsonObject.has("m2m:cin")) {
+                                jsonObject = jsonObject.getJSONObject("m2m:cin")
+                                if (notfSource == "location") {
+                                    if (sur == "$currentRoomContainerURI/$deviceIp" && jsonObject.getString(
+                                            "ty"
+                                        ).toInt() == 4
+                                    ) {
+                                        active.postValue(
+                                            jsonObject.getString("con")
+                                                .equals(roomName, ignoreCase = true)
+                                        )
+                                    }
                                 }
-                            }
-                            if (notfSource == "sentence") {
-                                if (sur == "$sentencesToReadContainerURI/$deviceIp" && jsonObject.getString(
-                                        "ty"
-                                    ).toInt() == 4
-                                ) {
-                                    speech!!.stopListening()
-                                    println(speech.toString())
+                                if (notfSource == "sentence") {
+                                    if (sur == "$sentencesToReadContainerURI/$deviceIp" && jsonObject.getString(
+                                            "ty"
+                                        ).toInt() == 4
+                                    ) {
+                                        speech!!.stopListening()
+                                        println(speech.toString())
 
-                                    tts!!.speak(
-                                        jsonObject.getString("con"),
-                                        TextToSpeech.QUEUE_FLUSH,
-                                        null,
-                                        "1"
-                                    )
+                                        tts!!.speak(
+                                            jsonObject.getString("con"),
+                                            TextToSpeech.QUEUE_FLUSH,
+                                            null,
+                                            "1"
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+        }catch (e: Exception){
+            Log.e("ERROR", "XML")
         }
+
     }
 
     private fun checkRoomName() {
-
+    try{
         val responseContainer = query("$managerContainerURI/$deviceIp")
         if (responseContainer != "Not found" && responseContainer.isNotEmpty()) {
             var resp = JSONObject(responseContainer)
@@ -275,6 +291,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 }
             }
         }
+    }catch (e: Exception){
+        Log.e("Exception", e.toString())
+    }
+
     }
 
     private fun sentenceToAnswer(answer: String) {
@@ -304,7 +324,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             )
 
         } else {
-            speech!!.startListening(recognizerIntent)
+            //speech!!.startListening(recognizerIntent)
+            tts!!.speak("Não conheço esse comando", TextToSpeech.QUEUE_FLUSH, null, "")
         }
     }
 
@@ -376,27 +397,17 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         Log.i(LOG_TAG, "resume")
         super.onResume()
 
-        //   resetSpeechRecognizer()
-        //   speech!!.startListening(recognizerIntent)
-        if (speech != null) {
-            speech!!.startListening(recognizerIntent)
-        }
     }
 
     override fun onPause() {
         Log.i(LOG_TAG, "pause")
         super.onPause()
-        if (speech != null) {
-            speech!!.stopListening()
-        }
+
     }
 
     override fun onStop() {
         Log.i(LOG_TAG, "stop")
         super.onStop()
-        if (speech != null) {
-            speech!!.destroy()
-        }
     }
 
 
@@ -422,7 +433,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         println(matches!![0])
 
-
+        timer?.cancel()
+        timer = null
+        isRuning=false
+        Log.e("RESULTS", "RESULTS")
         //se a palavra chave foi detetada anteriormente e resultados maior que zero
         if (detectedKeyword && matches.size != 0) {
 
@@ -434,15 +448,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 detectedKeyword = false
                 sentenceToAnswer(matches[0])
 
-                startTimeCounter()
             }
 
             //se a palavra chave for detetada
         } else if (matches[0].equals(keyword)) {
-            if (this::timer.isInitialized) timer.cancel()
-
-            animate(Action.TALK)
-
             detectedKeyword = true
             tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             //speech!!.startListening(recognizerIntent)
@@ -460,6 +469,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         // binding.errorView1.text = errorMessage
 
         if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
+            if(!isRuning && lastAnimation!=Action.SLEEP){
+                Log.e("ERROR RECOGGGG", "ERROR")
+                startTimeCounterSleep()
+            }
             speech!!.startListening(recognizerIntent)
         }
 
@@ -486,7 +499,15 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     override fun onRmsChanged(rmsdB: Float) {
-        //Log.i(LOG_TAG, "onRmsChanged: " + rmsdB);
+        if (rmsdB > 5 && rmsdB < 10.0 && (lastAnimation == null || lastAnimation == Action.SLEEP || lastAnimation == Action.TALK || lastAnimation == Action.WAITING)){
+            animate(Action.IMPATIENT)
+        }
+
+        if(rmsdB > 5 && rmsdB < 10.0){
+            Log.e("RMSDB", rmsdB.toString())
+        }
+
+
         binding.progressBar1.progress = rmsdB.toInt()
     }
 
@@ -522,6 +543,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private fun animate(action: Action) {
         val resource: Int
+        lastAnimation = action
 
         if (action == Action.WAITING || action == Action.IMPATIENT || action == Action.NOT_PRESENT) {
             binding.gifAction.visibility = View.GONE
@@ -563,6 +585,22 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                 animate(Action.SLEEP)
             }
         }.start()
+    }
+
+    private fun startTimeCounterSleep() {
+        isRuning = true
+        timer = object : CountDownTimer(15000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                println(millisUntilFinished)
+            }
+
+            override fun onFinish() {
+                if (!tts?.isSpeaking!! && lastAnimation != Action.SLEEP)
+                    animate(Action.SLEEP)
+                isRuning = false
+            }
+        }.start()
+
     }
 
 }

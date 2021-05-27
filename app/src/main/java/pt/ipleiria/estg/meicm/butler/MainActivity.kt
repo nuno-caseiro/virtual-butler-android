@@ -256,7 +256,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                                             "ty"
                                         ).toInt() == 4
                                     ) {
-                                        speech!!.stopListening()
+
+                                        detectedKeyword = false
                                         println(speech.toString())
 
                                         tts!!.speak(
@@ -477,7 +478,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         // binding.errorView1.text = errorMessage
 
         if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
-            if(!isRuning && lastAnimation!=Action.SLEEP){
+            if(!isRuning && lastAnimation!=Action.SLEEP ){
                 Log.e("ERROR RECOGGGG", "ERROR")
                 startTimeCounterSleep()
             }
@@ -507,7 +508,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     override fun onRmsChanged(rmsdB: Float) {
-        if (rmsdB > 5 && rmsdB < 10.0 && (lastAnimation == null || lastAnimation == Action.SLEEP || lastAnimation == Action.TALK || lastAnimation == Action.WAITING)){
+        if (rmsdB > 5 && rmsdB < 10.0 && (lastAnimation == null || lastAnimation == Action.SLEEP || lastAnimation == Action.TALK || lastAnimation == Action.WAITING) && !tts?.isSpeaking!!){
             animate(Action.IMPATIENT)
         }
 
@@ -572,27 +573,11 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             )
             binding.gifAction.setImageResource(resource)
 
-            if (action == Action.SHOCK || action == Action.TURN_ON) (binding.gifAction.drawable as GifDrawable).loopCount =
+            if (action == Action.SHOCK || action == Action.TURN_ON|| action == Action.SAD) (binding.gifAction.drawable as GifDrawable).loopCount =
                 1
 
             binding.gifAction.visibility = View.VISIBLE
         }
-    }
-
-    private fun startTimeCounter() {
-        timer = object : CountDownTimer(15000, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                println(millisUntilFinished)
-                if (millisUntilFinished in 6001..7000) {
-                    animate(Action.IMPATIENT)
-                    detectedKeyword = false
-                }
-            }
-
-            override fun onFinish() {
-                animate(Action.SLEEP)
-            }
-        }.start()
     }
 
     private fun startTimeCounterSleep() {
@@ -613,7 +598,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private fun startTimeCounterNoAnswer() {
 
-        timer = object : CountDownTimer(3000, 1000) {
+        timer = object : CountDownTimer(1500, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 println(millisUntilFinished)
             }

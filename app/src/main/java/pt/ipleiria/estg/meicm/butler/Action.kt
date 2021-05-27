@@ -7,6 +7,5 @@ enum class Action {
     TURN_ON,
     TALK,
     SLEEP,
-    SHOCK,
     SAD
 }

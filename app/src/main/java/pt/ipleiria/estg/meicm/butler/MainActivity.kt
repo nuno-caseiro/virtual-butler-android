@@ -53,8 +53,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-    private val serverIP = "192.168.1.78:7579"
-    //private val serverIP = "192.168.0.77:7579"
+    // private val serverIP = "192.168.1.78:7579"
+    private val serverIP = "192.168.0.77:7579"
     private val serverURI = "http://" + this.serverIP
 
     private lateinit var deviceIp: String
@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             if (it == false) {
                 animate(Action.WAITING)
                 speech!!.startListening(recognizerIntent)
-            }else{
+            } else {
                 animate(Action.TALK)
             }
         }
@@ -168,7 +168,13 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     setRecogniserIntent()
 
                     tts = TextToSpeech(this, this)
-                    tts!!.setOnUtteranceProgressListener(SpeechListener(speech!!, runningSpeech, noAnswerSpeech))
+                    tts!!.setOnUtteranceProgressListener(
+                        SpeechListener(
+                            speech!!,
+                            runningSpeech,
+                            noAnswerSpeech
+                        )
+                    )
                     speech!!.startListening(recognizerIntent)
 
                 } else { //desativa escuta, fala, esconde tudo
@@ -193,8 +199,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             }
         }
 
-        noAnswerSpeech.observeForever{
-            if (it){
+        noAnswerSpeech.observeForever {
+            if (it) {
                 animate(Action.SAD)
                 startTimeCounterNoAnswer()
             }
@@ -202,7 +208,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     private fun checkIfIsActive() {
-        try{
+        try {
             var responseContainer = query("$currentRoomContainerURI?fu=1&ty=4")
             if (responseContainer != "Not found " && responseContainer.isNotEmpty()) {
 
@@ -221,7 +227,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     }
                 }
             }
-        }catch (e: Exception){
+        } catch (e: Exception) {
             Log.e("Exception", e.toString())
         }
     }
@@ -273,36 +279,36 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     }
                 }
             }
-        }catch (e: Exception){
+        } catch (e: Exception) {
             Log.e("ERROR", "XML")
         }
 
     }
 
     private fun checkRoomName() {
-    try{
-        val responseContainer = query("$managerContainerURI/$deviceIp")
-        if (responseContainer != "Not found" && responseContainer.isNotEmpty()) {
-            var resp = JSONObject(responseContainer)
-            if (resp.has("m2m:dbg")) {
-                if (resp["m2m:dbg"] == "resource does not exist") {
-                    showSnack("There are no room for this device")
+        try {
+            val responseContainer = query("$managerContainerURI/$deviceIp")
+            if (responseContainer != "Not found" && responseContainer.isNotEmpty()) {
+                var resp = JSONObject(responseContainer)
+                if (resp.has("m2m:dbg")) {
+                    if (resp["m2m:dbg"] == "resource does not exist") {
+                        showSnack("There are no room for this device")
+                    }
                 }
-            }
 
-            if (resp.has("m2m:cin")) {
-                resp = resp.getJSONObject("m2m:cin")
-                if (resp.has("rn") && resp.has("con")) {
-                    if (resp.getString("rn") == deviceIp) {
-                        roomName = resp.getString("con")
-                        binding.roomNameTv.text = roomName.capitalize(Locale.ROOT)
+                if (resp.has("m2m:cin")) {
+                    resp = resp.getJSONObject("m2m:cin")
+                    if (resp.has("rn") && resp.has("con")) {
+                        if (resp.getString("rn") == deviceIp) {
+                            roomName = resp.getString("con")
+                            binding.roomNameTv.text = roomName.capitalize(Locale.ROOT)
+                        }
                     }
                 }
             }
+        } catch (e: Exception) {
+            Log.e("Exception", e.toString())
         }
-    }catch (e: Exception){
-        Log.e("Exception", e.toString())
-    }
 
     }
 
@@ -444,13 +450,16 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         timer?.cancel()
         timer = null
-        isRuning=false
+        isRuning = false
         Log.e("RESULTS", "RESULTS")
         //se a palavra chave foi detetada anteriormente e resultados maior que zero
         if (detectedKeyword && matches.size != 0) {
 
             //se o resultado for outra vez a palavra chave
-            if (matches[0].contains(keyword)) {
+            if (matches[0].contains(keyword) || matches[0].contains("Morgan") || matches[0].contains(
+                    "mordam"
+                ) || matches[0].contains("perdão") || matches[0].contains("cordão")
+            ) {
                 tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             } else {
                 //se for um comando, tenta responder
@@ -460,7 +469,10 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             }
 
             //se a palavra chave for detetada
-        } else if (matches[0].contains(keyword)) {
+        } else if (matches[0].contains(keyword) || matches[0].contains("Morgan") || matches[0].contains(
+                "mordam"
+            ) || matches[0].contains("perdão") || matches[0].contains("cordão")
+        ) {
             detectedKeyword = true
             tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
             //speech!!.startListening(recognizerIntent)
@@ -478,7 +490,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         // binding.errorView1.text = errorMessage
 
         if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
-            if(!isRuning && lastAnimation!=Action.SLEEP ){
+            if (!isRuning && lastAnimation != Action.SLEEP) {
                 Log.e("ERROR RECOGGGG", "ERROR")
                 startTimeCounterSleep()
             }
@@ -512,7 +524,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             animate(Action.IMPATIENT)
         }
 
-        if(rmsdB > 5 && rmsdB < 10.0){
+        if (rmsdB > 5 && rmsdB < 10.0) {
             Log.e("RMSDB", rmsdB.toString())
         }
 
@@ -573,7 +585,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             )
             binding.gifAction.setImageResource(resource)
 
-            if (action == Action.SHOCK || action == Action.TURN_ON|| action == Action.SAD) (binding.gifAction.drawable as GifDrawable).loopCount =
+            if (action == Action.TURN_ON || action == Action.SAD) (binding.gifAction.drawable as GifDrawable).loopCount =
                 1
 
             binding.gifAction.visibility = View.VISIBLE

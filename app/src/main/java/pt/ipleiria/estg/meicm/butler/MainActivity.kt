@@ -22,7 +22,9 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.MutableLiveData
 import com.google.android.material.snackbar.Snackbar
 import io.ktor.application.*
+import io.ktor.http.*
 import io.ktor.request.*
+import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.jetty.*
@@ -41,7 +43,7 @@ import java.util.*
 
 class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnInitListener {
 
-    private val PERMISSIONS_REQUEST_RECORD_AUDIO = 1
+    private val permissionsRequestRecordAudio = 1
 
     private var speech: SpeechRecognizer? = null
     private var recognizerIntent: Intent? = null
@@ -53,8 +55,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-    // private val serverIP = "192.168.1.78:7579"
-    private val serverIP = "192.168.0.77:7579"
+     private val serverIP = "192.168.1.78:7579"
+    //private val serverIP = "192.168.0.77:7579"
     private val serverURI = "http://" + this.serverIP
 
     private lateinit var deviceIp: String
@@ -108,7 +110,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(Manifest.permission.RECORD_AUDIO),
-                PERMISSIONS_REQUEST_RECORD_AUDIO
+                permissionsRequestRecordAudio
             )
         }
 
@@ -123,9 +125,11 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     val receiveText = call.receiveText()
                     Log.d("NOTIFICATION", receiveText)
                     receivedLocationNotification.postValue(receiveText)
+                    call.respond(HttpStatusCode.OK)
                 }
                 post("/sentences") {
                     val receiveText = call.receiveText()
+                    call.respond(HttpStatusCode.OK)
                     Log.d("NOTIFICATION", receiveText)
                     receivedSentenceNotification.postValue(receiveText)
                 }

@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     val receiveText = call.receiveText()
                     Log.d("NOTIFICATION", receiveText)
                     receivedLocationNotification.postValue(receiveText)
-                    call.respond(HttpStatusCode.Created)
+                    call.respond(HttpStatusCode.OK)
                 }
                 post("/sentences") {
                     val receiveText = call.receiveText()

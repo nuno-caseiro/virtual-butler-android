@@ -31,8 +31,10 @@ import io.ktor.server.jetty.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import pl.droidsonroids.gif.GifDrawable
@@ -55,7 +57,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     private lateinit var binding: ActivityMainBinding
 
-     private val serverIP = "192.168.1.78:7579"
+    private val serverIP = "192.168.1.78:7579"
+
     //private val serverIP = "192.168.0.77:7579"
     private val serverURI = "http://" + this.serverIP
 
@@ -65,7 +68,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     private var receivedSentenceNotification: MutableLiveData<String> = MutableLiveData<String>()
     private val managerContainerURI = "/onem2m/butler/iproomcnt"
     private val currentRoomContainerURI = "/onem2m/location/currentroomcnt"
-    private val sentencesToReadContainerURI = "/onem2m/butler/speakcnt"
+    private val sentencesToSpeakContainerURI = "/onem2m/butler/speakcnt"
     private lateinit var roomName: String
     private var active: MutableLiveData<Boolean> = MutableLiveData<Boolean>()
     private val client: OkHttpClient = OkHttpClient()
@@ -117,6 +120,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         CoroutineScope(Dispatchers.Default).launch {
             checkRoomName()
             checkIfIsActive()
+            checkSubs()
         }
 
         embeddedServer(Jetty, 1400) {
@@ -125,7 +129,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     val receiveText = call.receiveText()
                     Log.d("NOTIFICATION", receiveText)
                     receivedLocationNotification.postValue(receiveText)
-                    call.respond(HttpStatusCode.OK)
+                    call.respond(HttpStatusCode.Created)
                 }
                 post("/sentences") {
                     val receiveText = call.receiveText()
@@ -211,6 +215,73 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         }
     }
 
+    private fun checkSubs() {
+        try {
+            var responseContainer = query("$currentRoomContainerURI/$deviceIp")
+            if (responseContainer != "Not found") {
+                var resp = JSONObject(responseContainer)
+                if (resp.has("m2m:dbg")) {
+                    if (resp["m2m:dbg"] == "resource does not exist") {
+                        subscribeCurrentLocation(Room(deviceIp, deviceIp))
+                    }
+                }
+            }
+
+            responseContainer = query("$sentencesToSpeakContainerURI/$deviceIp")
+            if (responseContainer != "Not found") {
+                var resp = JSONObject(responseContainer)
+                if (resp.has("m2m:dbg")) {
+                    if (resp["m2m:dbg"] == "resource does not exist") {
+                        subscribeSentencesToSpeakContainer(Room(deviceIp, deviceIp))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            showSnack("Failed to connect to server")
+        }
+
+    }
+
+    private fun subscribeSentencesToSpeakContainer(room: Room) {
+        val mediaType = "application/xml;ty=23".toMediaTypeOrNull()
+        val body: RequestBody = RequestBody.create(
+            mediaType,
+            "<m2m:sub xmlns:m2m= \"http://www.onem2m.org/xml/protocols\" rn=\"${room.ip}\"><nu>http://${room.ip}:1400/sentences</nu><nct>2</nct><enc><net>3</net></enc></m2m:sub>"
+        )
+        val request: Request = makeRequest(
+            serverURI + sentencesToSpeakContainerURI,
+            body,
+            "application/xml",
+            "23",
+            "0008"
+        )
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                showSnack("Error subscribing sentences to speak container")
+            }
+        }
+    }
+
+
+    private fun subscribeCurrentLocation(room: Room) {
+        val client: OkHttpClient = OkHttpClient().newBuilder()
+            .build()
+        val mediaType = "application/xml;ty=23".toMediaTypeOrNull()
+        val body = RequestBody.create(
+            mediaType,
+            "<m2m:sub xmlns:m2m= \"http://www.onem2m.org/xml/protocols\" rn=\"${room.ip}\"><nu>http://${room.ip}:1400/location</nu><nct>2</nct><enc><net>3</net></enc></m2m:sub>"
+        )
+
+        val request: Request =
+            makeRequest(serverURI + currentRoomContainerURI, body, "application/xml", "23", "0008")
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                showSnack("Error subscribing sentences to speak container")
+            }
+        }
+    }
+
     private fun checkIfIsActive() {
         try {
             var responseContainer = query("$currentRoomContainerURI?fu=1&ty=4")
@@ -262,7 +333,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                                     }
                                 }
                                 if (notfSource == "sentence") {
-                                    if (sur == "$sentencesToReadContainerURI/$deviceIp" && jsonObject.getString(
+                                    if (sur == "$sentencesToSpeakContainerURI/$deviceIp" && jsonObject.getString(
                                             "ty"
                                         ).toInt() == 4
                                     ) {
@@ -524,7 +595,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     override fun onRmsChanged(rmsdB: Float) {
-        if (rmsdB > 5 && rmsdB < 10.0 && (lastAnimation == null || lastAnimation == Action.SLEEP || lastAnimation == Action.TALK || lastAnimation == Action.WAITING) && !tts?.isSpeaking!!){
+        if (rmsdB > 5 && rmsdB < 10.0 && (lastAnimation == null || lastAnimation == Action.SLEEP || lastAnimation == Action.TALK || lastAnimation == Action.WAITING) && !tts?.isSpeaking!!) {
             animate(Action.IMPATIENT)
         }
 
@@ -625,6 +696,22 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             }
         }.start()
 
+    }
+
+    private fun makeRequest(
+        url: String,
+        body: RequestBody,
+        type: String,
+        ty: String,
+        XM2MRI: String
+    ): Request {
+        return Request.Builder()
+            .url(url)
+            .method("POST", body)
+            .addHeader("Content-Type", "$type; ty=$ty")
+            .addHeader("X-M2M-RI", XM2MRI)
+            .addHeader("Authorization", "Basic c3VwZXJhZG1pbjpzbWFydGhvbWUyMQ==")
+            .build()
     }
 
 

@@ -45,6 +45,12 @@ import java.util.*
 
 class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnInitListener {
 
+    // TODO: Insert your server IP
+    private val serverIP = "CHANGE ME"
+    private val serverURI = "http://" + this.serverIP
+
+    private lateinit var deviceIp: String
+    
     private val permissionsRequestRecordAudio = 1
 
     private var speech: SpeechRecognizer? = null
@@ -53,16 +59,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     private var detectedKeyword: Boolean = false
     private val keyword: String = "mordomo"
 
-    private val LOG_TAG = "VoiceRecognitionActivity"
+    private val LOGTAG = "VoiceRecognitionActivity"
 
     private lateinit var binding: ActivityMainBinding
-
-    private val serverIP = "192.168.1.78:7579"
-
-    //private val serverIP = "192.168.0.77:7579"
-    private val serverURI = "http://" + this.serverIP
-
-    private lateinit var deviceIp: String
 
     private var receivedLocationNotification: MutableLiveData<String> = MutableLiveData<String>()
     private var receivedSentenceNotification: MutableLiveData<String> = MutableLiveData<String>()
@@ -152,7 +151,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
         receivedLocationNotification.observeForever {
             if (it != null) {
-                //desligar voice recognition -> como no exemplo que ja fiz "My application"
                 readNotification("location", it)
             }
         }
@@ -166,7 +164,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         active.observeForever {
             if (it != null) {
                 if (it) {
-                    //ativa escuta, fala, mostra tudo
                     binding.progressBar1.visibility = View.VISIBLE
                     binding.progressBar1.isIndeterminate = true
 
@@ -178,15 +175,13 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
                     tts = TextToSpeech(this, this)
                     tts!!.setOnUtteranceProgressListener(
                         SpeechListener(
-                            speech!!,
                             runningSpeech,
                             noAnswerSpeech
                         )
                     )
                     speech!!.startListening(recognizerIntent)
 
-                } else { //desativa escuta, fala, esconde tudo
-
+                } else {
                     animate(Action.NOT_PRESENT)
                     timer?.cancel()
                     timer = null
@@ -219,7 +214,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         try {
             var responseContainer = query("$currentRoomContainerURI/$deviceIp")
             if (responseContainer != "Not found") {
-                var resp = JSONObject(responseContainer)
+                val resp = JSONObject(responseContainer)
                 if (resp.has("m2m:dbg")) {
                     if (resp["m2m:dbg"] == "resource does not exist") {
                         subscribeCurrentLocation(Room(deviceIp, deviceIp))
@@ -229,7 +224,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
             responseContainer = query("$sentencesToSpeakContainerURI/$deviceIp")
             if (responseContainer != "Not found") {
-                var resp = JSONObject(responseContainer)
+                val resp = JSONObject(responseContainer)
                 if (resp.has("m2m:dbg")) {
                     if (resp["m2m:dbg"] == "resource does not exist") {
                         subscribeSentencesToSpeakContainer(Room(deviceIp, deviceIp))
@@ -388,7 +383,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     private fun sentenceToAnswer(answer: String) {
-        if (answer.toLowerCase().contains("horas são") || answer.toLowerCase()
+        if (answer.toLowerCase(Locale.ROOT).contains("horas são") || answer.toLowerCase(Locale.ROOT)
                 .contains("são que horas")
         ) {
             animate(Action.TALK)
@@ -401,7 +396,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             )
 
 
-        } else if (answer.toLowerCase().contains("dia é hoje") || answer.toLowerCase()
+        } else if (answer.toLowerCase(Locale.ROOT).contains("dia é hoje") || answer.toLowerCase(
+                Locale.ROOT
+            )
                 .contains("hoje é que dia")
         ) {
             animate(Action.TALK)
@@ -420,7 +417,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     private fun mappingDays(day: String): String {
-        when (day.toLowerCase()) {
+        when (day.toLowerCase(Locale.ROOT)) {
             "monday" -> return "segunda"
             "tuesday" -> return "terça"
             "wednesday" -> return "quarta"
@@ -463,7 +460,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     private fun resetSpeechRecognizer() {
         speech?.destroy()
         speech = SpeechRecognizer.createSpeechRecognizer(this)
-        Log.i(LOG_TAG, "isRecognitionAvailable: " + SpeechRecognizer.isRecognitionAvailable(this))
+        Log.i(LOGTAG, "isRecognitionAvailable: " + SpeechRecognizer.isRecognitionAvailable(this))
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
             speech!!.setRecognitionListener(this)
         } else finish()
@@ -484,41 +481,41 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
 
     override fun onResume() {
-        Log.i(LOG_TAG, "resume")
+        Log.i(LOGTAG, "resume")
         super.onResume()
 
     }
 
     override fun onPause() {
-        Log.i(LOG_TAG, "pause")
+        Log.i(LOGTAG, "pause")
         super.onPause()
 
     }
 
     override fun onStop() {
-        Log.i(LOG_TAG, "stop")
+        Log.i(LOGTAG, "stop")
         super.onStop()
     }
 
 
     override fun onBeginningOfSpeech() {
-        Log.i(LOG_TAG, "onBeginningOfSpeech")
+        Log.i(LOGTAG, "onBeginningOfSpeech")
         binding.progressBar1.isIndeterminate = false
         binding.progressBar1.max = 10
     }
 
     override fun onBufferReceived(buffer: ByteArray) {
-        Log.i(LOG_TAG, "onBufferReceived: $buffer")
+        Log.i(LOGTAG, "onBufferReceived: $buffer")
     }
 
     override fun onEndOfSpeech() {
-        Log.i(LOG_TAG, "onEndOfSpeech")
+        Log.i(LOGTAG, "onEndOfSpeech")
         binding.progressBar1.isIndeterminate = true
         speech!!.stopListening()
     }
 
     override fun onResults(results: Bundle) {
-        Log.i(LOG_TAG, "onResults")
+        Log.i(LOGTAG, "onResults")
         val matches = results
             .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         println(matches!![0])
@@ -527,10 +524,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
         timer = null
         isRuning = false
         Log.e("RESULTS", "RESULTS")
-        //se a palavra chave foi detetada anteriormente e resultados maior que zero
+
         if (detectedKeyword && matches.size != 0) {
 
-            //se o resultado for outra vez a palavra chave
             if (matches[0].contains(keyword) || matches[0].contains("Morgan") || matches[0].contains(
                     "mordam"
                 ) || matches[0].contains("perdão") || matches[0].contains("cordão")
@@ -543,26 +539,20 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
             }
 
-            //se a palavra chave for detetada
         } else if (matches[0].contains(keyword) || matches[0].contains("Morgan") || matches[0].contains(
                 "mordam"
             ) || matches[0].contains("perdão") || matches[0].contains("cordão")
         ) {
             detectedKeyword = true
             tts!!.speak("Diga", TextToSpeech.QUEUE_FLUSH, null, "")
-            //speech!!.startListening(recognizerIntent)
         } else {
-            //se a palavra chave nao foi detetada agora nem anteriormente
-
-            //tts!!.speak("Não percebi", TextToSpeech.QUEUE_FLUSH, null, "")
             speech!!.startListening(recognizerIntent)
         }
     }
 
     override fun onError(errorCode: Int) {
         val errorMessage = getErrorText(errorCode)
-        Log.i(LOG_TAG, "FAILED $errorMessage")
-        // binding.errorView1.text = errorMessage
+        Log.i(LOGTAG, "FAILED $errorMessage")
 
         if (errorCode == SpeechRecognizer.ERROR_NO_MATCH) {
             if (!isRuning && lastAnimation != Action.SLEEP) {
@@ -583,15 +573,15 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
     }
 
     override fun onEvent(arg0: Int, arg1: Bundle?) {
-        Log.i(LOG_TAG, "onEvent")
+        Log.i(LOGTAG, "onEvent")
     }
 
     override fun onPartialResults(arg0: Bundle?) {
-        Log.i(LOG_TAG, "onPartialResults")
+        Log.i(LOGTAG, "onPartialResults")
     }
 
     override fun onReadyForSpeech(arg0: Bundle?) {
-        Log.i(LOG_TAG, "onReadyForSpeech")
+        Log.i(LOGTAG, "onReadyForSpeech")
     }
 
     override fun onRmsChanged(rmsdB: Float) {
@@ -624,7 +614,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            // set US English as language for tts
             val result = tts!!.setLanguage(Locale.getDefault())
 
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -713,6 +702,4 @@ class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnIn
             .addHeader("Authorization", "Basic c3VwZXJhZG1pbjpzbWFydGhvbWUyMQ==")
             .build()
     }
-
-
 }

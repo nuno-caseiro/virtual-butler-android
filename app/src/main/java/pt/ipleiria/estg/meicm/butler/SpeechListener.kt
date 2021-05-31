@@ -1,18 +1,20 @@
 package pt.ipleiria.estg.meicm.butler
 
-import android.speech.SpeechRecognizer
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 
-class SpeechListener(var speech: SpeechRecognizer, var b: MutableLiveData<Boolean>, var noAnswer:MutableLiveData<Boolean>) :
+class SpeechListener(
+    var b: MutableLiveData<Boolean>,
+    var noAnswer: MutableLiveData<Boolean>
+) :
     UtteranceProgressListener() {
 
 
     override fun onDone(utteranceId: String?) {
-        if(utteranceId=="99"){
+        if (utteranceId == "99") {
             noAnswer.postValue(true)
-        }else{
+        } else {
             b.postValue(false)
         }
 

@@ -45,7 +45,7 @@ import java.util.*
 
 class MainActivity : AppCompatActivity(), RecognitionListener, TextToSpeech.OnInitListener {
 
-    // TODO: Insert your server IP
+    // TODO: Insert your server IP + port eg: 192.168.1.1:7679
     private val serverIP = "CHANGE ME"
     private val serverURI = "http://" + this.serverIP
 
